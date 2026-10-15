@@ -64,7 +64,7 @@ GPU results are polled with `DoNotFlush`, never waited on. Samples with disconti
 
 ## Physical tube profile
 
-These controls are in the editor's **Physical tube profile** group. They do not change the console style. Except for the profile selector itself, they only affect an active physical profile.
+Choose **Advanced settings**, then **Physical tube profile** in the editor to find these controls. They do not change the console style. Except for the profile selector itself, they only affect an active physical profile.
 
 | CLI | JSON | Default | Allowed | Meaning |
 |---|---|---|---|---|

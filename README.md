@@ -6,7 +6,7 @@ Bring a CRT-inspired atmosphere to your games, films, anime, and retro video. CR
 
 No game modification is required. Run a game or video player in a window or borderless mode, choose a preset, and tune the look in the live editor. The overlay passes mouse clicks through to the applications underneath.
 
-**Version 1.0.2 · Windows x64 · MIT license**
+**Version 1.0.3 · Windows x64 · MIT license**
 
 ## What it does
 
@@ -25,7 +25,7 @@ Download the latest Windows x64 release ZIP from [GitHub Releases](https://githu
 1. Install **.NET Runtime 9 x64** if it is not already installed. The SDK is not needed for the release ZIP; Runtime 10 alone does not replace Runtime 9.
 2. Extract the entire ZIP into a writable folder. Keep `app`, `presets`, and the BAT files together.
 3. Run `Start.bat` for Balanced, or `Editor.bat` to open the editor.
-4. Choose a preset from the editor's list. Enable **Preview changes on the desktop** to see the result as you adjust the sliders.
+4. Choose a preset from the editor's list. Enable **Live desktop preview** to see the result as you adjust the sliders.
 5. **Apply** keeps your settings for this session. **Save to file…** writes a JSON file you can open again later.
 6. Exit with `Stop.bat`, the tray menu, or **Ctrl+Alt+Shift+Q** if that shortcut is available.
 
@@ -48,7 +48,7 @@ Download the latest Windows x64 release ZIP from [GitHub Releases](https://githu
 
 `Startup` in the tray restores the settings from the current launch. It is not a CLI preset name.
 
-The ready-made Philips preset is available in both the tray and the editor. To combine the tube with another style, first choose the style, then select **Physical tube profile → Picture tube → Philips A51EAL155X**. The component is a picture tube; no particular TV chassis is claimed.
+The ready-made Philips preset is available in both the tray and the editor. To combine the tube with another style, first choose the style, then select **Advanced settings → Physical tube profile → Picture tube → Philips A51EAL155X**. The component is a picture tube; no particular TV chassis is claimed.
 
 Geometry and area scaling change the displayed picture but **do not remap Windows mouse coordinates**. Strong curvature or a smaller tube area can make the visible cursor/targets differ from actual click positions. These modes are best suited to viewing or keyboard/controller use.
 
@@ -66,11 +66,13 @@ Double-click the tray icon to open the editor. All shortcuts use **Ctrl+Alt+Shif
 
 If another app, such as G-Helper, owns a shortcut, only that shortcut is disabled for the session. CRT Overlay continues running; the action remains in the tray. Free the shortcut and restart to register it again.
 
+The editor first opens in **Basic settings**, with brightness, scanline and mask strength, glow, and curvature on both axes. Choose **Advanced settings** and a section for the full set of controls. Switching views keeps your edits; finish correcting an incomplete number before switching.
+
 The top of the editor names the preset or file you are editing. **Modified** and an asterisk in the title mean that you have changed its original values. The messages at the bottom distinguish changes you have applied from changes you have saved to a file. They also tell you when the effect is switched off from the tray or a shortcut.
 
 **Apply** keeps your changes on screen without writing a file. **Save to file…** does both; use **Open file…** to load those settings again later. Until you apply your changes, **Cancel and close**, Escape, and the window's close button restore the last applied settings. After you apply, the button changes to **Close**. Turning preview off also shows the last applied settings and keeps your edits in the fields.
 
-**Restore preset** returns to the original values of the selected preset or opened file. **Applied settings** in the list restores your last applied choices, while **Reset section** restores the application defaults for the current section only. A complete preset replaces image settings; choosing a tube alone keeps the other controls.
+**Restore preset** returns to the original values of the selected preset or opened file. **Applied settings** in the list restores your last applied choices. **Reset basic settings** restores the defaults for the six basic controls; **Reset section** does the same for the selected advanced section. Other settings stay as you left them. A complete preset replaces image settings; choosing a tube alone keeps the other controls.
 
 Switch English/Russian in the editor or tray. The preference lives in `%LOCALAPPDATA%\CrtOverlay\ui.json`, separate from image presets. CLI names and JSON keys stay the same in both languages.
 
@@ -104,7 +106,7 @@ Only one instance runs per user session. An ordinary second launch does not repl
 |---|---|
 | App does not start | Check .NET Runtime 9 x64 and the log below |
 | Shortcut does nothing | Check the tray; the log names conflicting combinations |
-| Changes are not visible | Enable Preview changes on the desktop and check that the effect is on; restart after updating the app |
+| Changes are not visible | Enable Live desktop preview and check that the effect is on; restart after updating the app |
 | Capture exclusion fails | Send the full log, Windows build, GPU/driver version, and whether the session is local or remote |
 | Colors look wrong | Disable HDR in Windows |
 | Protected video is black | This capture path does not bypass DRM |

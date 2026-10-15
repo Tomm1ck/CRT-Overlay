@@ -2,6 +2,10 @@
 
 **English** · [Русский](docs/ru/CHANGELOG.md)
 
+## 1.0.3 — 2026-10-15
+
+- Frequently used picture controls are now together in Basic settings. Switch to Advanced settings for the full set of controls; your edits stay in place.
+
 ## 1.0.2 — 2026-10-15
 
 - The editor now shows which preset you are editing and whether preview is on.
