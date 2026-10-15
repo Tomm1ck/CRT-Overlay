@@ -2,6 +2,12 @@
 
 **English** · [Русский](docs/ru/CHANGELOG.md)
 
+## 1.0.1 — 2026-10-15
+
+- Preserve persistence and rolling history when adjusting bloom, halation, brightness, output gamma, geometry, convergence, focus, vignette, glass reflections, or BFI. Physical stripe-mask adjustments also preserve history; changes to beam inputs or the temporal model still reset it.
+- Read only the changed editor row while the draft is valid. Repeated control notifications with the same value no longer revalidate or publish a duplicate preview; recovery from invalid input validates the full group.
+- Reuse the color-conversion matrix when gamut, white temperature, tube profile, and white-point mode are unchanged.
+
 ## 1.0.0 — 2026-10-15
 
 First public release.

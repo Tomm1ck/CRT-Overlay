@@ -33,6 +33,7 @@ internal sealed class PresetEditor : IDisposable
     {
         public readonly PropertyInfo Property = property;
         public readonly OptionAttribute Option = option;
+        public readonly string[]? Choices = option.Choices?.Split('|');
         public nint Label, Edit, Second, Slider, Hint;
     }
     public PresetEditor(nint owner, AppIcons icons)
@@ -221,7 +222,7 @@ internal sealed class PresetEditor : IDisposable
                 {
                     selected = (int)EditorNative.SendMessageW(row.Edit,0x147,0,0);
                     EditorNative.SendMessageW(row.Edit,0x14B,0,0);
-                    foreach (string choice in row.Option.Choices.Split('|')) EditorNative.SendText(row.Edit,0x143,0,L.Choice(choice));
+                    foreach (string choice in row.Choices!) EditorNative.SendText(row.Edit,0x143,0,L.Choice(choice));
                     EditorNative.SendMessageW(row.Edit,0x14E,selected,0);
                 }
             }
@@ -248,7 +249,7 @@ internal sealed class PresetEditor : IDisposable
                 else if (option.Choices != null && option.Choices != "x,y")
                 {
                     row.Edit = Control("COMBOBOX","",Tab | 0x200003,id+1,panel);
-                    foreach (string choice in option.Choices.Split('|')) EditorNative.SendText(row.Edit,0x143,0,L.Choice(choice));
+                    foreach (string choice in row.Choices!) EditorNative.SendText(row.Edit,0x143,0,L.Choice(choice));
                 }
                 else
                 {
@@ -277,7 +278,7 @@ internal sealed class PresetEditor : IDisposable
             EditorNative.SetWindowTextW(row.Second,pair.Y.ToString("G7",CultureInfo.InvariantCulture));
         }
         else if (row.Option.Choices != null)
-            EditorNative.SendMessageW(row.Edit,0x14E,Array.IndexOf(row.Option.Choices.Split('|'),(string)value),0);
+            EditorNative.SendMessageW(row.Edit,0x14E,Array.IndexOf(row.Choices!,(string)value),0);
         else
         {
             EditorNative.SetWindowTextW(row.Edit,Convert.ToString(value,CultureInfo.InvariantCulture)!);
@@ -295,41 +296,51 @@ internal sealed class PresetEditor : IDisposable
             throw new FormatException(L.T("Неверное число. Используйте точку или запятую для дробной части."));
         return value;
     }
-    private void ReadRows(nint activeSlider = 0)
+    private bool ReadRow(Row row, nint activeSlider)
     {
-        foreach (var row in rows)
+        object value;
+        if (row.Property.PropertyType == typeof(bool)) value = EditorNative.SendMessageW(row.Edit,0xF0,0,0) != 0;
+        else if (row.Second != 0) value = Number(Text(row.Edit)).ToString("G7",CultureInfo.InvariantCulture) + "," + Number(Text(row.Second)).ToString("G7",CultureInfo.InvariantCulture);
+        else if (row.Choices != null)
         {
-            object value;
-            if (row.Property.PropertyType == typeof(bool)) value = EditorNative.SendMessageW(row.Edit,0xF0,0,0) != 0;
-            else if (row.Second != 0) value = Number(Text(row.Edit)).ToString("G7",CultureInfo.InvariantCulture) + "," + Number(Text(row.Second)).ToString("G7",CultureInfo.InvariantCulture);
-            else if (row.Option.Choices != null)
-            {
-                int index = (int)EditorNative.SendMessageW(row.Edit,0x147,0,0);
-                if (index < 0) throw new ArgumentException(L.T("Выберите ") + Caption(row.Option.Name));
-                value = row.Option.Choices.Split('|')[index];
-            }
-            else
-            {
-                float n = Number(Text(row.Edit));
-                if (!float.IsFinite(n)) throw new ArgumentException(Caption(row.Option.Name) + L.T(": требуется конечное число."));
-                if (row.Property.PropertyType == typeof(int))
-                {
-                    if (n != MathF.Truncate(n)) throw new ArgumentException(Caption(row.Option.Name) + L.T(": требуется целое число."));
-                    value = checked((int)n);
-                }
-                else value = n;
-                // Do not reposition a trackbar from inside its own drag notification.
-                if (row.Slider != activeSlider) SetSlider(row,n);
-            }
-            row.Property.SetValue(draft,value);
+            int index = (int)EditorNative.SendMessageW(row.Edit,0x147,0,0);
+            if (index < 0) throw new ArgumentException(L.T("Выберите ") + Caption(row.Option.Name));
+            value = row.Choices[index];
         }
+        else
+        {
+            float n = Number(Text(row.Edit));
+            if (!float.IsFinite(n)) throw new ArgumentException(Caption(row.Option.Name) + L.T(": требуется конечное число."));
+            if (row.Property.PropertyType == typeof(int))
+            {
+                if (n != MathF.Truncate(n)) throw new ArgumentException(Caption(row.Option.Name) + L.T(": требуется целое число."));
+                value = checked((int)n);
+            }
+            else value = n;
+            // Do not reposition a trackbar from inside its own drag notification.
+            if (row.Slider != activeSlider) SetSlider(row,n);
+        }
+        if (Equals(row.Property.GetValue(draft),value)) return false;
+        row.Property.SetValue(draft,value); return true;
+    }
+    private bool ReadRows(nint activeSlider, Row? changedRow)
+    {
+        // A valid draft already contains every other control's current value.
+        // After an input error, reread the full group to validate all pending edits together.
+        if (valid && changedRow != null) return ReadRow(changedRow,activeSlider);
+        bool changed = false;
+        foreach (var row in rows) changed |= ReadRow(row,activeSlider);
+        return changed;
     }
     private bool Live => EditorNative.SendMessageW(live,0xF0,0,0) != 0;
-    private bool ValidateAndPreview(bool publish, nint activeSlider = 0)
+    private bool ValidateAndPreview(bool publish, nint activeSlider = 0, Row? changedRow = null)
     {
         try
         {
-            ReadRows(activeSlider); draft.Validate(); valid = true;
+            bool wasValid = valid;
+            bool changed = ReadRows(activeSlider,changedRow);
+            if (wasValid && changedRow != null && !changed) return true;
+            draft.Validate(); valid = true;
             if (publish && Live) Publish(draft);
             string message = Live ? L.T("Предпросмотр на рабочем столе. «Применить» оставит изменения; «Отмена» вернёт предыдущие.") : L.T("Предпросмотр выключен: на экране применённые настройки. Новые значения — в черновике.");
             if (draft.TubeProfile != "legacy") message += "\n" + L.T("Philips: затухание, пятно и свечение — оценки; охват и шаг маски берутся из профиля.");
@@ -485,12 +496,17 @@ internal sealed class PresetEditor : IDisposable
                 double v=row.Option.Name.StartsWith("decay-") ? row.Option.Min*Math.Pow(row.Option.Max/row.Option.Min,f) : row.Option.Min+(row.Option.Max-row.Option.Min)*f;
                 if (row.Property.PropertyType==typeof(int)) { v=Math.Round(v); if (row.Option.Name is "retro-width" or "retro-height" && v is > 0 and < 64) v=64; }
                 filling=true; EditorNative.SetWindowTextW(row.Edit,v.ToString("0.#####",CultureInfo.InvariantCulture)); filling=false;
-                ValidateAndPreview(true,lp); return 0;
+                ValidateAndPreview(true,lp,row); return 0;
             }
             if (msg == 0x111 && !filling)
             {
                 int id=(int)(wp & 0xffff), notification=(int)((wp >> 16)&0xffff);
-                if (id>=1000 && notification is 0 or 1 or 0x300) { ValidateAndPreview(true); return 0; }
+                if (id>=1000 && notification is 0 or 1 or 0x300)
+                {
+                    int index = (id-1000)/4;
+                    if (index < rows.Count) ValidateAndPreview(true,changedRow: rows[index]);
+                    return 0;
+                }
                 if (id==101 && notification==1) { ChoosePreset(); return 0; }
                 if (id==105 && notification==1) { BuildRows(); return 0; }
                 if (id==111 && notification==1) { L.SetLanguage(EditorNative.SendMessageW(language,0x147,0,0) == 1 ? "en" : "ru"); return 0; }

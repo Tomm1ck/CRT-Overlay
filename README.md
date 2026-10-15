@@ -6,7 +6,7 @@ Bring a CRT-inspired atmosphere to your games, films, anime, and retro video. CR
 
 No game modification is required. Run a game or video player in a window or borderless mode, choose a preset, and tune the look in the live editor. The overlay passes mouse clicks through to the applications underneath.
 
-**Version 1.0.0 · Windows x64 · MIT license**
+**Version 1.0.1 · Windows x64 · MIT license**
 
 ## What it does
 
@@ -20,7 +20,7 @@ The goal is an enjoyable viewing atmosphere. This is an approximate display effe
 
 ## Get started
 
-Download `CRT-Overlay-v1.0.0-win-x64.zip` from [GitHub Releases](https://github.com/Tomm1ck/CRT-Overlay/releases/latest). GitHub's **Code → Download ZIP** contains source code, not a ready-to-run application.
+Download the latest Windows x64 release ZIP from [GitHub Releases](https://github.com/Tomm1ck/CRT-Overlay/releases/latest). GitHub's **Code → Download ZIP** contains source code, not a ready-to-run application.
 
 1. Install **.NET Runtime 9 x64** if it is not already installed. The SDK is not needed for the release ZIP; Runtime 10 alone does not replace Runtime 9.
 2. Extract the entire ZIP into a writable folder. Keep `app`, `presets`, and the BAT files together.

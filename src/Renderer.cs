@@ -142,6 +142,7 @@ internal sealed class Renderer : IDisposable
     }
 
     public void ReloadShaders() => pipeline.ReloadShaders();
+    public void ResetHistory() => pipeline.ResetHistory();
     public void ApplySettings(CrtSettings value) { settings = value; pipeline.ApplySettings(value); }
 
     public bool Render(bool cursorHidden, bool editorOpen = false)

@@ -121,7 +121,7 @@ internal static class Program
                 {
                     window.ToggleRequested = false; enabled = !enabled; tray.Enabled = enabled;
                     cursor.SetHidden(false); window.SetVisible(false);
-                    if (enabled) settingsChanged = true; // Сброс накопленного до паузы послесвечения.
+                    if (enabled) renderer?.ResetHistory(); // Сброс накопленного до паузы послесвечения.
                 }
                 if (window.PresetRequested != -2)
                 {
@@ -134,7 +134,7 @@ internal static class Program
                 if (window.EditorRequested)
                 {
                     window.EditorRequested = false; cursor.SetHidden(false);
-                    if (!enabled) { enabled = true; tray.Enabled = true; settingsChanged = true; }
+                    if (!enabled) { enabled = true; tray.Enabled = true; renderer?.ResetHistory(); }
                     editor.Open(settings);
                 }
                 var edited = editor.TakePending();
@@ -182,7 +182,7 @@ internal static class Program
                         presented++; window.SetVisible(true); cursor.SetHidden(!editor.IsOpen && renderer.WantsCursorHidden);
                         if (settings.Cursor == "capture" && !cursor.Available)
                         {
-                            settings.Cursor = "system"; renderer.ApplySettings(settings);
+                            settings.Cursor = "system"; renderer.ApplySettings(settings); renderer.ResetHistory();
                             Log(L.T("Используется системный курсор: скрытие недоступно."));
                         }
                     }

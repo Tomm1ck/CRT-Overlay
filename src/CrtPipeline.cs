@@ -68,6 +68,7 @@ internal sealed partial class CrtPipeline : IDisposable
     private ID3D11PixelShader[] pixels = [];
     private CrtSettings settings;
     private SettingsData settingsData;
+    private (string Gamut, float Temperature, TubeProfile? Tube, bool ReferenceWhite)? colorMatrixKey;
     private bool settingsDirty = true, resetHistory = true;
     private int historyIndex;
     private long lastTick, startTick, frame;
@@ -106,7 +107,6 @@ internal sealed partial class CrtPipeline : IDisposable
             var replacement = new Surface(device, (uint)size.Width, (uint)size.Height);
             retro?.Dispose(); retro = replacement;
         }
-        settings = value;
         var r = CrtSettings.Pair(value.ConvergenceR); var b = CrtSettings.Pair(value.ConvergenceB);
         // P22/P4: эффективные, растянутые для 144 Гц экспоненциальные времена,
         // а НЕ паспортные измерения конкретной трубки. Для измеренных tau — custom.
@@ -114,7 +114,7 @@ internal sealed partial class CrtPipeline : IDisposable
         Vector3 decay = value.Phosphor == "P4" ? new(.024f) : value.Phosphor == "custom"
             ? new(value.DecayR * .001f, value.DecayG * .001f, value.DecayB * .001f) : new(.006f, .004f, .002f);
         var tube = TubeProfile.Resolve(value.TubeProfile);
-        settingsData = new SettingsData
+        var data = new SettingsData
         {
             Geometry = new(value.CurvatureX, value.CurvatureY, value.CornerRadius, value.Overscan),
             Beam = new(value.ScanlineStrength, value.BeamMin, value.BeamMax, value.HorizontalBlur),
@@ -146,18 +146,41 @@ internal sealed partial class CrtPipeline : IDisposable
                 _ => Vector2.One
             };
             var a = tube.Values("surfaceA"); var exponents = tube.Values("surfaceB");
-            settingsData.Tube = new(dimensions[0], dimensions[1], tube.Values("stripePitch")[0], value.ViewDistanceMm);
-            settingsData.TubeArea = new(area, 0, 0);
-            settingsData.TubeContent = new(content, 0, 0);
-            settingsData.SurfaceA = new(a[0], a[1], a[2], 1);
-            settingsData.SurfaceB = new(exponents[0], exponents[1], exponents[2], exponents[3]);
-            settingsData.TubeLight = new(value.TubeLuminance == "reference" ? tube.Values("referenceLuminance")[0] / value.DisplayWhiteNits : 1,
+            data.Tube = new(dimensions[0], dimensions[1], tube.Values("stripePitch")[0], value.ViewDistanceMm);
+            data.TubeArea = new(area, 0, 0);
+            data.TubeContent = new(content, 0, 0);
+            data.SurfaceA = new(a[0], a[1], a[2], 1);
+            data.SurfaceB = new(exponents[0], exponents[1], exponents[2], exponents[3]);
+            data.TubeLight = new(value.TubeLuminance == "reference" ? tube.Values("referenceLuminance")[0] / value.DisplayWhiteNits : 1,
                 tube.Values("stripeFill")[0], 0, 0);
         }
-        ColorMatrix(value.Gamut, value.Temperature, tube, value.TubeWhite == "reference",
-            out settingsData.MatrixR, out settingsData.MatrixG, out settingsData.MatrixB);
-        settingsDirty = resetHistory = true;
+        var matrixKey = (value.Gamut, value.Temperature, tube, value.TubeWhite == "reference");
+        if (!colorMatrixKey.HasValue || colorMatrixKey.Value != matrixKey)
+            ColorMatrix(value.Gamut, value.Temperature, tube, value.TubeWhite == "reference",
+                out data.MatrixR, out data.MatrixG, out data.MatrixB);
+        else
+        {
+            data.MatrixR = settingsData.MatrixR; data.MatrixG = settingsData.MatrixG; data.MatrixB = settingsData.MatrixB;
+        }
+        // Only inputs to Colorize, Beam and Persistence invalidate their stored light.
+        // Geometry, glow and output adjustments operate after history and keep it intact.
+        resetHistory |= HistoryChanged(in settingsData, in data);
+        settings = value; settingsData = data; colorMatrixKey = matrixKey; settingsDirty = true;
     }
+    private static bool HistoryChanged(in SettingsData previous, in SettingsData next) =>
+        previous.Beam != next.Beam
+        || previous.Color.X != next.Color.X || previous.Color.Y != next.Color.Y || previous.Color.W != next.Color.W
+        || previous.MatrixR != next.MatrixR || previous.MatrixG != next.MatrixG || previous.MatrixB != next.MatrixB
+        || previous.Finish.Z != next.Finish.Z || previous.Finish.W != next.Finish.W
+        || previous.Signal.X != next.Signal.X || previous.Signal.Z != next.Signal.Z || previous.Signal.W != next.Signal.W
+        || previous.Temporal.X != next.Temporal.X || previous.Temporal.Y != next.Temporal.Y || previous.Temporal.W != next.Temporal.W
+        || previous.Decay != next.Decay || previous.Rolling != next.Rolling
+        || previous.Retro != next.Retro || previous.RetroSignal != next.RetroSignal
+        || previous.SurfaceA.W != next.SurfaceA.W
+        || (next.SurfaceA.W > .5f
+            ? previous.TubeContent != next.TubeContent || previous.TubeArea.Y != next.TubeArea.Y
+            : previous.Mask != next.Mask || previous.Light.W != next.Light.W);
+    public void ResetHistory() => resetHistory = true;
     private static Vector3 Xyz(float x, float y) => new(x / y, 1, (1 - x - y) / y);
     private static Matrix4x4 Primaries(Vector3 r, Vector3 g, Vector3 b, Vector3 white)
     {
