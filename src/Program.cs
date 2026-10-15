@@ -120,6 +120,7 @@ internal static class Program
                 if (window.ToggleRequested)
                 {
                     window.ToggleRequested = false; enabled = !enabled; tray.Enabled = enabled;
+                    editor.SetEffectEnabled(enabled);
                     cursor.SetHidden(false); window.SetVisible(false);
                     if (enabled) renderer?.ResetHistory(); // Сброс накопленного до паузы послесвечения.
                 }
@@ -129,18 +130,18 @@ internal static class Program
                     window.PresetRequested = -2;
                     var replacement = presetIndex == 0 ? startup.Clone() : CrtSettings.BuiltIn(presetIndex);
                     replacement.KeepRuntime(settings); settings = replacement; settingsChanged = true; tray.PresetIndex = presetIndex;
-                    editor.TakePending(); editor.Sync(settings);
-                }
-                if (window.EditorRequested)
-                {
-                    window.EditorRequested = false; cursor.SetHidden(false);
-                    if (!enabled) { enabled = true; tray.Enabled = true; renderer?.ResetHistory(); }
-                    editor.Open(settings);
+                    editor.TakePending(); editor.Sync(settings,presetIndex);
                 }
                 var edited = editor.TakePending();
                 if (edited != null)
                 {
                     edited.KeepRuntime(settings); settings = edited; settingsChanged = true; tray.PresetIndex = -1;
+                }
+                if (window.EditorRequested)
+                {
+                    window.EditorRequested = false; cursor.SetHidden(false);
+                    if (!enabled) { enabled = true; tray.Enabled = true; renderer?.ResetHistory(); }
+                    editor.SetEffectEnabled(enabled); editor.Open(settings,tray.PresetIndex);
                 }
                 if (editor.IsOpen) cursor.SetHidden(false);
                 if (window.RebuildRequested)

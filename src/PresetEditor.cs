@@ -10,7 +10,7 @@ namespace CrtOverlay;
 // останавливают развёртку. D3D-контекст остаётся исключительно на render-потоке.
 internal sealed class PresetEditor : IDisposable
 {
-    private const uint OpenMessage = 0x8050, SyncMessage = 0x8051, ShutdownMessage = 0x8052;
+    private const uint OpenMessage = 0x8050, SyncMessage = 0x8051, ShutdownMessage = 0x8052, EffectMessage = 0x8053;
     private const string ClassName = "CrtOverlay.Editor";
     private const uint Child = 0x50000000, Tab = 0x10000;
     private readonly nint owner;
@@ -23,10 +23,12 @@ internal sealed class PresetEditor : IDisposable
     private readonly List<Row> rows = [];
     private CrtSettings? opening, external, pending;
     private CrtSettings baseline = new(), draft = new();
-    private volatile bool visible, disposed;
+    private sealed record PresetSource(int Index, string? FilePath, CrtSettings Values);
+    private PresetSource source = new(-1, null, new()), baselineSource = new(-1, null, new());
+    private volatile bool visible, disposed, effectEnabled = true;
     private bool filling, valid = true;
-    private int scroll, dpi = 96;
-    private string? filePath;
+    private int scroll, dpi = 96, openingPresetIndex = -1, externalPresetIndex = -1;
+    private string? statusError;
     public bool IsOpen => visible;
     private static string[] Categories => [L.T("Геометрия и фокус"), L.T("Луч и маска"), L.T("Цвет и свечение"), L.T("Развёртка и послесвечение"), L.T("Шум и стекло"), L.T("Консольная графика"), L.T("Физический профиль трубки")];
     private sealed class Row(PropertyInfo property, OptionAttribute option)
@@ -40,12 +42,12 @@ internal sealed class PresetEditor : IDisposable
     { this.owner = owner; this.icons = icons; callback = WindowProc; L.Changed += LanguageChanged; }
     private void LanguageChanged()
     { lock (gate) { if (hwnd != 0) EditorNative.PostMessageW(hwnd,L.ChangedMessage,0,0); } }
-    public void Open(CrtSettings settings)
+    public void Open(CrtSettings settings, int presetIndex)
     {
         lock (gate)
         {
             if (disposed) return;
-            opening = settings.Clone();
+            opening = settings.Clone(); openingPresetIndex = presetIndex;
             if (thread == null)
             {
                 thread = new Thread(ThreadMain) { IsBackground = true, Name = "CRT preset editor" };
@@ -54,13 +56,19 @@ internal sealed class PresetEditor : IDisposable
             if (hwnd != 0) EditorNative.PostMessageW(hwnd, OpenMessage, 0, 0);
         }
     }
-    public void Sync(CrtSettings settings)
+    public void Sync(CrtSettings settings, int presetIndex)
     {
         lock (gate)
         {
-            external = settings.Clone(); Interlocked.Exchange(ref pending, null);
+            external = settings.Clone(); externalPresetIndex = presetIndex; Interlocked.Exchange(ref pending, null);
             if (hwnd != 0) EditorNative.PostMessageW(hwnd, SyncMessage, 0, 0);
         }
+    }
+    public void SetEffectEnabled(bool value)
+    {
+        if (effectEnabled == value) return;
+        effectEnabled = value;
+        lock (gate) { if (hwnd != 0) EditorNative.PostMessageW(hwnd,EffectMessage,0,0); }
     }
     public CrtSettings? TakePending() => Interlocked.Exchange(ref pending, null);
     private void Publish(CrtSettings value)
@@ -80,6 +88,59 @@ internal sealed class PresetEditor : IDisposable
         "monitor" or "present" or "sync-interval" or "fps" or "test-seconds" or "debug-layer" or "performance-log" or "cursor" => -1,
         _ => 4 // Новые shader-настройки не потеряются, даже если ещё не распределены по группам.
     };
+    private static readonly (PropertyInfo Property, OptionAttribute Option)[] ImageOptions =
+        CrtSettings.Options.Where(x => Group(x.Option.Name) >= 0).ToArray();
+    private static bool SameImage(CrtSettings left, CrtSettings right)
+    {
+        foreach (var (property, option) in ImageOptions)
+        {
+            object a = property.GetValue(left)!, b = property.GetValue(right)!;
+            if (option.Choices == "x,y")
+            {
+                if (CrtSettings.Pair((string)a) != CrtSettings.Pair((string)b)) return false;
+            }
+            else if (!Equals(a,b)) return false;
+        }
+        return true;
+    }
+    private string SourceName => source.FilePath != null ? Path.GetFileName(source.FilePath)
+        : source.Index > 0 ? L.Preset(CrtSettings.Names[source.Index])
+        : source.Index == 0 ? L.T("Настройки при запуске") : L.T("Свои настройки");
+    private void RefreshPresets()
+    {
+        bool previous = filling; filling = true;
+        try
+        {
+            EditorNative.SendMessageW(presets,0x14B,0,0);
+            EditorNative.SendText(presets,0x143,0,L.T("Применённые настройки"));
+            foreach (string name in CrtSettings.Names.Skip(1)) EditorNative.SendText(presets,0x143,0,L.Preset(name));
+            if (source.Index <= 0) EditorNative.SendText(presets,0x143,0,SourceName);
+            EditorNative.SendMessageW(presets,0x14E,source.Index > 0 ? source.Index : CrtSettings.Names.Length,0);
+        }
+        finally { filling = previous; }
+    }
+    private void RefreshState()
+    {
+        if (status == 0) return;
+        bool unapplied = !valid || !SameImage(draft,baseline);
+        bool modified = !valid || !SameImage(draft,source.Values);
+        EditorNative.SetWindowTextW(fixedControls[0],L.F("Пресет: {0}{1}",SourceName,modified ? L.T(" (изменён)") : ""));
+        EditorNative.SetWindowTextW(hwnd,"CRT Overlay — " + SourceName + (modified ? " *" : ""));
+        string preview = !effectEnabled ? L.T("Эффект выключен: изменения на экране не видны.")
+            : Live ? L.T("Предпросмотр включён.") : L.T("Предпросмотр выключен: на экране применённые настройки.");
+        string applied = !valid ? L.T("Исправьте значение в поле.")
+            : unapplied ? L.T("Есть неприменённые изменения.") : L.T("Настройки применены.");
+        string saved = source.FilePath != null
+            ? modified ? L.T("Есть изменения, не записанные в файл.") : L.T("Нет изменений для записи в файл.")
+            : modified ? L.T("Изменения не записаны в файл.")
+            : source.Index > 0 ? L.T("Вы выбрали встроенный пресет.") : L.T("Файл для сохранения не выбран.");
+        string hint = statusError ?? (unapplied
+            ? L.T("«Отменить и закрыть» вернёт последние применённые настройки.")
+            : L.T("«Сохранить в файл…» позволит открыть этот вариант позже."));
+        EditorNative.SetWindowTextW(status,preview + " " + applied + "\n" + saved + "\n" + hint);
+        EditorNative.EnableWindow(apply,valid && unapplied); EditorNative.EnableWindow(save,valid);
+        EditorNative.SetWindowTextW(fixedControls[9],unapplied ? L.T("Отменить и закрыть") : L.T("Закрыть"));
+    }
     private static string Caption(string name) => name switch
     {
         "tube-profile" => L.T("Кинескоп"), "tube-area" => L.T("Пропорции области трубки"),
@@ -165,24 +226,23 @@ internal sealed class PresetEditor : IDisposable
     { var c = Control(type,title,style,id); fixedControls.Add(c); return c; }
     private void BuildControls()
     {
-        Fixed("STATIC",L.T("Настройки ЭЛТ и консольной графики"),0,100);
+        Fixed("STATIC","",0x4080,100);
         presets = Fixed("COMBOBOX","",Tab | 0x200003,101);
-        foreach (string name in CrtSettings.Names) EditorNative.SendText(presets,0x143,0,L.Preset(name));
-        EditorNative.SendMessageW(presets,0x14E,0,0);
-        Fixed("BUTTON",L.T("Взять за основу"),Tab,102);
-        Fixed("BUTTON",L.T("Открыть JSON…"),Tab,103);
-        save = Fixed("BUTTON",L.T("Сохранить как…"),Tab,104);
+        RefreshPresets();
+        Fixed("BUTTON",L.T("Вернуть пресет"),Tab,102);
+        Fixed("BUTTON",L.T("Открыть файл…"),Tab,103);
+        save = Fixed("BUTTON",L.T("Сохранить в файл…"),Tab,104);
         category = Fixed("COMBOBOX","",Tab | 0x200003,105);
         foreach (string name in Categories) EditorNative.SendText(category,0x143,0,name);
         EditorNative.SendMessageW(category,0x14E,0,0);
-        live = Fixed("BUTTON",L.T("Живой предпросмотр на рабочем столе"),Tab | 3,106);
+        live = Fixed("BUTTON",L.T("Показывать изменения на рабочем столе"),Tab | 3,106);
         EditorNative.SendMessageW(live,0xF1,1,0);
         panel = Native.CreateWindowExW(0x10000,ClassName,"",Child | 0x02200000,0,0,1,1,hwnd,0,Native.GetModuleHandleW(null),0);
         if (panel == 0) throw new Win32Exception();
         status = Fixed("STATIC","",0,107);
         apply = Fixed("BUTTON",L.T("Применить"),Tab | 1,108);
-        Fixed("BUTTON",L.T("Отмена и закрыть"),Tab,109);
-        Fixed("BUTTON",L.T("Сбросить группу"),Tab,110);
+        Fixed("BUTTON",L.T("Закрыть"),Tab,109);
+        Fixed("BUTTON",L.T("Сбросить раздел"),Tab,110);
         language = Fixed("COMBOBOX","",Tab | 0x200003,111);
         EditorNative.SendText(language,0x143,0,"Русский (RU)");
         EditorNative.SendText(language,0x143,0,"English (EN)");
@@ -196,23 +256,17 @@ internal sealed class PresetEditor : IDisposable
         try
         {
             // Меняем только подписи: не пересоздаём поля и не теряем незавершённый ввод.
-            EditorNative.SetWindowTextW(hwnd,filePath == null ? L.T("CRT Overlay — редактор пресетов") : "CRT Overlay — " + Path.GetFileName(filePath));
-            EditorNative.SetWindowTextW(fixedControls[0],L.T("Настройки ЭЛТ и консольной графики"));
-            EditorNative.SetWindowTextW(fixedControls[2],L.T("Взять за основу"));
-            EditorNative.SetWindowTextW(fixedControls[3],L.T("Открыть JSON…"));
-            EditorNative.SetWindowTextW(save,L.T("Сохранить как…"));
-            EditorNative.SetWindowTextW(live,L.T("Живой предпросмотр на рабочем столе"));
+            EditorNative.SetWindowTextW(fixedControls[2],L.T("Вернуть пресет"));
+            EditorNative.SetWindowTextW(fixedControls[3],L.T("Открыть файл…"));
+            EditorNative.SetWindowTextW(save,L.T("Сохранить в файл…"));
+            EditorNative.SetWindowTextW(live,L.T("Показывать изменения на рабочем столе"));
             EditorNative.SetWindowTextW(apply,L.T("Применить"));
-            EditorNative.SetWindowTextW(fixedControls[9],L.T("Отмена и закрыть"));
-            EditorNative.SetWindowTextW(fixedControls[10],L.T("Сбросить группу"));
+            EditorNative.SetWindowTextW(fixedControls[10],L.T("Сбросить раздел"));
             int selected = (int)EditorNative.SendMessageW(category,0x147,0,0);
             EditorNative.SendMessageW(category,0x14B,0,0);
             foreach (string name in Categories) EditorNative.SendText(category,0x143,0,name);
             EditorNative.SendMessageW(category,0x14E,selected,0);
-            selected = (int)EditorNative.SendMessageW(presets,0x147,0,0);
-            EditorNative.SendMessageW(presets,0x14B,0,0);
-            foreach (string name in CrtSettings.Names) EditorNative.SendText(presets,0x143,0,L.Preset(name));
-            EditorNative.SendMessageW(presets,0x14E,selected,0);
+            RefreshPresets();
             EditorNative.SendMessageW(language,0x14E,L.Language == "en" ? 1 : 0,0);
             foreach (var row in rows)
             {
@@ -274,8 +328,8 @@ internal sealed class PresetEditor : IDisposable
         else if (row.Second != 0)
         {
             var pair = CrtSettings.Pair((string)value);
-            EditorNative.SetWindowTextW(row.Edit,pair.X.ToString("G7",CultureInfo.InvariantCulture));
-            EditorNative.SetWindowTextW(row.Second,pair.Y.ToString("G7",CultureInfo.InvariantCulture));
+            EditorNative.SetWindowTextW(row.Edit,pair.X.ToString("R",CultureInfo.InvariantCulture));
+            EditorNative.SetWindowTextW(row.Second,pair.Y.ToString("R",CultureInfo.InvariantCulture));
         }
         else if (row.Option.Choices != null)
             EditorNative.SendMessageW(row.Edit,0x14E,Array.IndexOf(row.Choices!,(string)value),0);
@@ -300,7 +354,7 @@ internal sealed class PresetEditor : IDisposable
     {
         object value;
         if (row.Property.PropertyType == typeof(bool)) value = EditorNative.SendMessageW(row.Edit,0xF0,0,0) != 0;
-        else if (row.Second != 0) value = Number(Text(row.Edit)).ToString("G7",CultureInfo.InvariantCulture) + "," + Number(Text(row.Second)).ToString("G7",CultureInfo.InvariantCulture);
+        else if (row.Second != 0) value = Number(Text(row.Edit)).ToString("R",CultureInfo.InvariantCulture) + "," + Number(Text(row.Second)).ToString("R",CultureInfo.InvariantCulture);
         else if (row.Choices != null)
         {
             int index = (int)EditorNative.SendMessageW(row.Edit,0x147,0,0);
@@ -341,14 +395,12 @@ internal sealed class PresetEditor : IDisposable
             bool changed = ReadRows(activeSlider,changedRow);
             if (wasValid && changedRow != null && !changed) return true;
             draft.Validate(); valid = true;
+            statusError = null;
             if (publish && Live) Publish(draft);
-            string message = Live ? L.T("Предпросмотр на рабочем столе. «Применить» оставит изменения; «Отмена» вернёт предыдущие.") : L.T("Предпросмотр выключен: на экране применённые настройки. Новые значения — в черновике.");
-            if (draft.TubeProfile != "legacy") message += "\n" + L.T("Philips: затухание, пятно и свечение — оценки; охват и шаг маски берутся из профиля.");
-            EditorNative.SetWindowTextW(status,message);
         }
         catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
-        { valid = false; EditorNative.SetWindowTextW(status,L.T("Не применено: ") + ex.Message); }
-        EditorNative.EnableWindow(apply,valid); EditorNative.EnableWindow(save,valid);
+        { valid = false; statusError = L.T("Не удалось применить: ") + ex.Message; }
+        RefreshState();
         return valid;
     }
     private void Move(nint control, int x, int y, int w, int h) => Native.SetWindowPos(control,0,Px(x),Px(y),Px(w),Px(h),0x0014);
@@ -359,8 +411,8 @@ internal sealed class PresetEditor : IDisposable
         Move(fixedControls[0],16,12,w-188,24); Move(language,w-156,8,140,180);
         Move(presets,16,44,180,350); Move(fixedControls[2],204,43,160,30); Move(fixedControls[3],372,43,155,30); Move(save,535,43,165,30);
         Move(category,16,86,280,280); Move(live,312,85,w-328,30);
-        Move(panel,16,126,w-32,Math.Max(50,h-228));
-        Move(status,16,h-94,w-32,44); Move(apply,w-338,h-40,140,30); Move(fixedControls[9],w-188,h-40,172,30); Move(fixedControls[10],16,h-40,190,30);
+        Move(panel,16,126,w-32,Math.Max(50,h-260));
+        Move(status,16,h-126,w-32,78); Move(apply,w-338,h-40,140,30); Move(fixedControls[9],w-188,h-40,172,30); Move(fixedControls[10],16,h-40,190,30);
         LayoutRows();
     }
     private void LayoutRows()
@@ -385,24 +437,32 @@ internal sealed class PresetEditor : IDisposable
     {
         lock (gate)
         {
-            if (!visible && opening != null) { baseline = opening.Clone(); draft = baseline.Clone(); filePath = null; external = null; }
+            if (!visible && opening != null)
+            {
+                if (openingPresetIndex >= 0 || !SameImage(opening,baseline))
+                    baselineSource = new(openingPresetIndex,null,opening.Clone());
+                baseline = opening.Clone(); draft = baseline.Clone(); source = baselineSource; external = null;
+            }
             opening = null;
         }
-        if (!visible) { BuildRows(); EditorNative.SetWindowTextW(hwnd,L.T("CRT Overlay — редактор пресетов")); }
+        if (!visible) { RefreshPresets(); BuildRows(); }
         visible = true; EditorNative.ShowWindow(hwnd,9); EditorNative.SetForegroundWindow(hwnd); EditorNative.SetFocus(category);
     }
     private void Close(bool keep)
     {
         if (!visible) return;
-        if (keep) { if (!ValidateAndPreview(false)) return; baseline = draft.Clone(); }
-        Publish(baseline); visible = false; EditorNative.ShowWindow(hwnd,0);
+        if (keep) { if (!ValidateAndPreview(false)) return; baseline = draft.Clone(); baselineSource = source; }
+        Publish(baseline); draft = baseline.Clone(); source = baselineSource;
+        visible = false; EditorNative.ShowWindow(hwnd,0);
     }
     private void ChoosePreset()
     {
         int index = (int)EditorNative.SendMessageW(presets,0x147,0,0);
         if (index < 0) return;
-        draft = index == 0 ? baseline.Clone() : CrtSettings.BuiltIn(index);
-        draft.KeepRuntime(baseline); BuildRows(); ValidateAndPreview(true);
+        if (index == 0) { draft = baseline.Clone(); source = baselineSource; }
+        else if (index == CrtSettings.Names.Length) draft = source.Values.Clone();
+        else { draft = CrtSettings.BuiltIn(index); source = new(index,null,draft.Clone()); }
+        draft.KeepRuntime(baseline); RefreshPresets(); BuildRows(); ValidateAndPreview(true);
     }
     private void FileDialog(bool writing)
     {
@@ -411,7 +471,7 @@ internal sealed class PresetEditor : IDisposable
         try
         {
             Marshal.WriteInt16(buffer,0);
-            string initial = writing ? filePath ?? "my-crt-preset.json" : "";
+            string initial = writing ? source.FilePath ?? "my-crt-preset.json" : "";
             byte[] bytes = Encoding.Unicode.GetBytes(initial + '\0'); Marshal.Copy(bytes,0,buffer,bytes.Length);
             var dialog = new EditorNative.OpenFileName
             {
@@ -435,12 +495,16 @@ internal sealed class PresetEditor : IDisposable
                 string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try { draft.Save(temporary); File.Move(temporary,path,true); }
                 finally { if (File.Exists(temporary)) File.Delete(temporary); }
-                baseline = draft.Clone(); Publish(baseline); EditorNative.SetWindowTextW(status,L.T("Сохранено: ") + path);
+                baseline = draft.Clone(); source = baselineSource = new(-1,path,baseline.Clone());
+                Publish(baseline); RefreshPresets(); RefreshState();
             }
-            else { var loaded = CrtSettings.Load(path); loaded.KeepRuntime(baseline); draft = loaded; BuildRows(); ValidateAndPreview(true); }
-            filePath = path; EditorNative.SetWindowTextW(hwnd,"CRT Overlay — " + Path.GetFileName(path));
+            else
+            {
+                var loaded = CrtSettings.Load(path); loaded.KeepRuntime(baseline); draft = loaded;
+                source = new(-1,path,loaded.Clone()); RefreshPresets(); BuildRows(); ValidateAndPreview(true);
+            }
         }
-        catch (Exception ex) { EditorNative.SetWindowTextW(status,L.T("Ошибка: ") + ex.Message); }
+        catch (Exception ex) { statusError = L.T("Ошибка: ") + ex.Message; RefreshState(); }
         finally { Marshal.FreeHGlobal(buffer); }
     }
     private nint WindowProc(nint window, uint msg, nuint wp, nint lp)
@@ -448,11 +512,19 @@ internal sealed class PresetEditor : IDisposable
         try
         {
             if (msg == L.ChangedMessage) { RefreshLanguage(); return 0; }
+            if (msg == EffectMessage) { RefreshState(); return 0; }
             if (msg == OpenMessage) { OpenOnThread(); return 0; }
             if (msg == SyncMessage)
             {
-                lock (gate) { if (external != null) { baseline = external; draft = baseline.Clone(); external = null; } }
-                if (visible) { BuildRows(); filePath = null; EditorNative.SetWindowTextW(hwnd,L.T("CRT Overlay — редактор пресетов")); }
+                lock (gate)
+                {
+                    if (external != null)
+                    {
+                        baseline = external; draft = baseline.Clone();
+                        source = baselineSource = new(externalPresetIndex,null,baseline.Clone()); external = null;
+                    }
+                }
+                if (visible) { RefreshPresets(); BuildRows(); }
                 return 0;
             }
             if (msg == ShutdownMessage)
@@ -518,7 +590,9 @@ internal sealed class PresetEditor : IDisposable
                     case 104: FileDialog(true); break;
                     case 106: if (Live) ValidateAndPreview(true); else { Publish(baseline); ValidateAndPreview(false); } break;
                     case 1:
-                    case 108: if (ValidateAndPreview(false)) { baseline=draft.Clone(); Publish(baseline); EditorNative.SetWindowTextW(status,L.T("Настройки применены. Для сохранения в JSON нажмите «Сохранить как…».")); } break;
+                    case 108:
+                        if (ValidateAndPreview(false)) { baseline=draft.Clone(); baselineSource=source; Publish(baseline); RefreshState(); }
+                        break;
                     case 109: Close(false); break;
                     case 110:
                         var defaults=new CrtSettings(); foreach(var row in rows) row.Property.SetValue(draft,row.Property.GetValue(defaults)); BuildRows(); ValidateAndPreview(true); break;

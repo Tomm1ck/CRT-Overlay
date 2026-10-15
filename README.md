@@ -6,7 +6,7 @@ Bring a CRT-inspired atmosphere to your games, films, anime, and retro video. CR
 
 No game modification is required. Run a game or video player in a window or borderless mode, choose a preset, and tune the look in the live editor. The overlay passes mouse clicks through to the applications underneath.
 
-**Version 1.0.1 · Windows x64 · MIT license**
+**Version 1.0.2 · Windows x64 · MIT license**
 
 ## What it does
 
@@ -25,8 +25,8 @@ Download the latest Windows x64 release ZIP from [GitHub Releases](https://githu
 1. Install **.NET Runtime 9 x64** if it is not already installed. The SDK is not needed for the release ZIP; Runtime 10 alone does not replace Runtime 9.
 2. Extract the entire ZIP into a writable folder. Keep `app`, `presets`, and the BAT files together.
 3. Run `Start.bat` for Balanced, or `Editor.bat` to open the editor.
-4. Choose a preset from the editor's list. With **Live preview** enabled, both the settings and the desktop update immediately. Adjust the sliders to taste.
-5. Use **Apply** to keep the current settings for this session, or **Save as…** to save a JSON preset.
+4. Choose a preset from the editor's list. Enable **Preview changes on the desktop** to see the result as you adjust the sliders.
+5. **Apply** keeps your settings for this session. **Save to file…** writes a JSON file you can open again later.
 6. Exit with `Stop.bat`, the tray menu, or **Ctrl+Alt+Shift+Q** if that shortcut is available.
 
 **Requirements:** Windows 10 version 2004/build 19041 or newer, or Windows 11; x64; a Direct3D 11 GPU with feature level 11.0, a working Desktop Duplication driver, and SDR output. One selected monitor is processed. Designed to handle 60, 59.94, and 144 Hz; actual presentation depends on Windows, the driver, and GPU load.
@@ -66,7 +66,11 @@ Double-click the tray icon to open the editor. All shortcuts use **Ctrl+Alt+Shif
 
 If another app, such as G-Helper, owns a shortcut, only that shortcut is disabled for the session. CRT Overlay continues running; the action remains in the tray. Free the shortcut and restart to register it again.
 
-The editor previews changes without saving them. **Apply** and **Save as…** update the baseline; **Cancel and close**, Escape, and the close button revert edits made since that baseline. Turning preview off shows the last applied settings. Loading a complete preset replaces image settings; choosing a tube alone keeps the other controls.
+The top of the editor names the preset or file you are editing. **Modified** and an asterisk in the title mean that you have changed its original values. The messages at the bottom distinguish changes you have applied from changes you have saved to a file. They also tell you when the effect is switched off from the tray or a shortcut.
+
+**Apply** keeps your changes on screen without writing a file. **Save to file…** does both; use **Open file…** to load those settings again later. Until you apply your changes, **Cancel and close**, Escape, and the window's close button restore the last applied settings. After you apply, the button changes to **Close**. Turning preview off also shows the last applied settings and keeps your edits in the fields.
+
+**Restore preset** returns to the original values of the selected preset or opened file. **Applied settings** in the list restores your last applied choices, while **Reset section** restores the application defaults for the current section only. A complete preset replaces image settings; choosing a tube alone keeps the other controls.
 
 Switch English/Russian in the editor or tray. The preference lives in `%LOCALAPPDATA%\CrtOverlay\ui.json`, separate from image presets. CLI names and JSON keys stay the same in both languages.
 
@@ -100,7 +104,7 @@ Only one instance runs per user session. An ordinary second launch does not repl
 |---|---|
 | App does not start | Check .NET Runtime 9 x64 and the log below |
 | Shortcut does nothing | Check the tray; the log names conflicting combinations |
-| Changes are not visible | Enable Live preview; use the latest EXE and restart after updating |
+| Changes are not visible | Enable Preview changes on the desktop and check that the effect is on; restart after updating the app |
 | Capture exclusion fails | Send the full log, Windows build, GPU/driver version, and whether the session is local or remote |
 | Colors look wrong | Disable HDR in Windows |
 | Protected video is black | This capture path does not bypass DRM |

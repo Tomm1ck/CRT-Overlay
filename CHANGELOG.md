@@ -2,6 +2,12 @@
 
 **English** · [Русский](docs/ru/CHANGELOG.md)
 
+## 1.0.2 — 2026-10-15
+
+- The editor now shows which preset you are editing and whether preview is on.
+- Separate messages show which changes you have applied and which you still need to save to a file. Clearer button labels help you choose the right action.
+- Choosing another preset no longer leaves the previously opened file's name in the editor.
+
 ## 1.0.1 — 2026-10-15
 
 - Preserve persistence and rolling history when adjusting bloom, halation, brightness, output gamma, geometry, convergence, focus, vignette, glass reflections, or BFI. Physical stripe-mask adjustments also preserve history; changes to beam inputs or the temporal model still reset it.
