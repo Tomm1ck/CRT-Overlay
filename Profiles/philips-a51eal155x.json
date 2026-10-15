@@ -1,0 +1,40 @@
+{
+  "SchemaVersion": 1,
+  "Id": "philips-a51eal155x",
+  "Component": "Philips A51EAL155X Black Line FX colour picture tube",
+  "Chassis": null,
+  "Sources": {
+    "philips2000": {
+      "Title": "Philips Components product specification, 2000-01-21",
+      "Url": "https://patric-sokoll.de/Roehrenmuseum/Datenbank/PDF/Datenblatt%20A51EAL155X%20Philips.pdf",
+      "Verified": "2026-10-12",
+      "Hosting": "Manufacturer document hosted by a third-party archive; printed page numbers."
+    }
+  },
+  "Parameters": {
+    "usefulSize": { "Value": [411.2, 308.9], "Units": "mm", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "Nominal useful horizontal and vertical axes; outline approximated as a rectangle with user corner rounding." },
+    "stripePitch": { "Value": [0.78], "Units": "mm", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "Approximate centre-to-centre spacing of IDENTICAL colour stripes at screen centre; treated as constant projected XY pitch across screen." },
+    "red": { "Value": [0.630, 0.330], "Units": "CIE xy", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "Red phosphor primary." },
+    "green": { "Value": [0.300, 0.610], "Units": "CIE xy", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "Green phosphor primary." },
+    "blue": { "Value": [0.155, 0.065], "Units": "CIE xy", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "Blue phosphor primary." },
+    "white": { "Value": [0.313, 0.329], "Units": "CIE xy", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "White D used for luminance measurement, not an intrinsic fixed white of the tube." },
+    "glassTransmission": { "Value": [0.41], "Units": "fraction", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "Face glass at centre. Metadata only: reference luminance already includes glass; do not attenuate twice." },
+    "referenceLuminance": { "Value": [79], "Units": "cd/m2", "Origin": "documented", "Source": "philips2000", "Pages": [4], "Conditions": "Centre, focused raster, white x=0.313 y=0.329, current density 0.4 microampere/cm2. Not maximum luminance. Reference output mode divides this by user-supplied display white." },
+    "surfaceA": { "Value": [0.000233161, 0.000250647, -9.318e-11], "Units": "mm-based coefficients", "Origin": "documented", "Source": "philips2000", "Pages": [10], "Conditions": "Outer faceplate sag Z=A1*abs(X)^B1+A2*abs(Y)^B2+A3*abs(X)^B3*abs(Y)^B4; X,Y,Z in mm. Coefficient dimensions depend on exponents." },
+    "surfaceB": { "Value": [2.1, 2.1, 1.84082, 2.65536], "Units": "exponents", "Origin": "documented", "Source": "philips2000", "Pages": [10], "Conditions": "B1,B2,B3,B4 in the outer surface equation; sagittal heights on page 11 use the diagonal endpoint as a different reference." },
+    "stripeFill": { "Value": [0.75], "Units": "fraction", "Origin": "estimated", "Source": null, "Pages": [], "Conditions": "Total emitting width per RGB period; three equal stripes, 25% black gaps. No measured slot aperture heights or stripe widths available." },
+    "decayRgb": { "Value": null, "Units": "ms", "Origin": "unknown", "Source": "philips2000", "Pages": [4], "Conditions": "Only qualitative medium short persistence specified.", "Fallback": "Existing user Phosphor/DecayR/G/B/Persistence settings, explicitly effective estimates, never Philips measurements." },
+    "spot": { "Value": null, "Units": "mm", "Origin": "unknown", "Source": null, "Pages": [], "Conditions": "No calibrated current-dependent spot map used.", "Fallback": "Existing user BeamMin/BeamMax/Focus settings; estimated Gaussian footprint." },
+    "scatter": { "Value": null, "Units": "mm", "Origin": "unknown", "Source": null, "Pages": [], "Conditions": "No measured optical point-spread function.", "Fallback": "Existing Bloom/Halation artistic filters; physical stripe modulation is applied after glow and focus." },
+    "gunTransfer": { "Value": null, "Units": "A/V", "Origin": "unknown", "Source": "philips2000", "Pages": [19], "Conditions": "Gun graph not digitized or used; video amplifier/chassis not identified.", "Fallback": "Existing artistic Gamma correction; not a calibrated gun or television transfer curve." }
+  },
+  "Assumptions": [
+    "Observer on tube axis at ViewDistanceMm from centre apex; pinhole perspective, no glass refraction or thickness model.",
+    "Outer faceplate approximates emitting surface. Ideal corrected deflection maps raster uniformly in projected tube X/Y, not by ray from electron gun.",
+    "Surface equation is mirrored across both axes; inverse projection uses eight fixed-point iterations within useful area plus a small border.",
+    "Centre pitch extended uniformly; RGB order, fill and rectangular outline are approximations, not a measured slot-mask cell map.",
+    "Physical mask is evaluated at final geometry using pixel derivatives and a band-limited Fourier stripe filter; it does not enter persistence history or optical scattering.",
+    "Reference luminance mode is a relative scaling aid for a user-calibrated SDR display. Artistic effects and clipping prevent a guaranteed photometric match.",
+    "No television chassis, measured RGB decay constants, calibrated spot shape or optical scattering claimed."
+  ]
+}

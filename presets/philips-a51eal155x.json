@@ -1,0 +1,23 @@
+{
+  "SchemaVersion": 2,
+  "TubeProfile": "philips-a51eal155x",
+  "TubeArea": "fit",
+  "TubeScale": 1,
+  "TubeContent": "fit",
+  "ViewDistanceMm": 1000,
+  "TubeWhite": "reference",
+  "TubeLuminance": "relative",
+  "DisplayWhiteNits": 120,
+  "CurvatureX": 0,
+  "CurvatureY": 0,
+  "ConvergenceR": "0,0",
+  "ConvergenceB": "0,0",
+  "Noise": 0,
+  "Flicker": 0,
+  "GlassReflection": 0,
+  "Vignette": 0,
+  "Phosphor": "custom",
+  "DecayR": 6,
+  "DecayG": 4,
+  "DecayB": 2
+}

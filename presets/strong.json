@@ -1,0 +1,9 @@
+{
+  "CurvatureX": 0.12,
+  "CurvatureY": 0.12,
+  "MaskStrength": 0.6,
+  "ScanlineStrength": 0.7,
+  "Bloom": 0.35,
+  "Halation": 0.2,
+  "Noise": 0.008
+}

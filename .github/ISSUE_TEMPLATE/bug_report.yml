@@ -1,0 +1,24 @@
+name: Bug report / Ошибка
+description: Report a reproducible problem / Сообщить об ошибке
+title: "[Bug]: "
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / Система
+      description: Release version, Windows build, GPU and driver, monitor refresh rate, SDR/HDR, local/remote session.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps and settings / Шаги и настройки
+      description: Include the preset, exact steps, expected behavior and actual result. For editor issues, say whether Live preview is enabled.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log / Журнал
+      description: Relevant lines from %LOCALAPPDATA%\CrtOverlay\crt.log. Remove personal information before sharing.
+      render: text

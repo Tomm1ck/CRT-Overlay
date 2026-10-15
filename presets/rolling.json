@@ -1,0 +1,13 @@
+{
+  "RollingScan": true,
+  "RollingCompensation": true,
+  "Persistence": 0.7,
+  "ScanHz": 60,
+  "Brightness": 1.0,
+  "Flicker": 0.0,
+  "Noise": 0.002,
+  "Phosphor": "custom",
+  "DecayR": 9,
+  "DecayG": 7,
+  "DecayB": 5
+}

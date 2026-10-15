@@ -1,0 +1,23 @@
+{
+  "ConsoleStyle": "megadrive",
+  "Composite": 0,
+  "RetroWidth": 0,
+  "RetroHeight": 0,
+  "RetroDither": 0.65,
+  "RetroFilter": 0.25,
+  "Noise": 0.001,
+  "Flicker": 0,
+  "Persistence": 0.12,
+  "CurvatureX": 0.045,
+  "CurvatureY": 0.045,
+  "MaskStrength": 0.2,
+  "ScanlineStrength": 0.4,
+  "Scanlines": 224,
+  "Bloom": 0.12,
+  "Halation": 0.06,
+  "Focus": 0.2,
+  "HorizontalBlur": 0.15,
+  "Gamma": 2.2,
+  "ConvergenceR": "0.15,0.0",
+  "ConvergenceB": "-0.15,0.0"
+}

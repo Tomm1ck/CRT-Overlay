@@ -1,0 +1,27 @@
+* text=auto
+*.cs text eol=lf
+*.hlsl text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.ico binary
+*.png binary
+*.zip binary
+
+# Exclude local workspace instructions from source archives
+AGENTS.md export-ignore
+AGENTS.override.md export-ignore
+CLAUDE.md export-ignore
+GEMINI.md export-ignore
+.local export-ignore
+.agents export-ignore
+.codex export-ignore
+.claude export-ignore
+.cursor export-ignore
+NEXT_SESSION*.md export-ignore
+HANDOFF*.md export-ignore
+SESSION_NOTES*.md export-ignore
+WORKING_RULES.md export-ignore
+PUBLISH_NEXT.md export-ignore

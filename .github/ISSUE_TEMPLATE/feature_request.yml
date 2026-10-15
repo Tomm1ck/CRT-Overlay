@@ -1,0 +1,11 @@
+name: Feature request / Предложение
+description: Suggest an improvement / Предложить улучшение
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Use case and proposed behavior / Задача и предложение
+      description: Describe what you want to achieve and how the feature would help. Link sources for physical CRT data where relevant.
+    validations:
+      required: true
