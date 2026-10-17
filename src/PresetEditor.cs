@@ -13,6 +13,7 @@ internal sealed class PresetEditor : IDisposable
     private const uint OpenMessage = 0x8050, SyncMessage = 0x8051, ShutdownMessage = 0x8052, EffectMessage = 0x8053;
     private const string ClassName = "CrtOverlay.Editor";
     private const uint Child = 0x50000000, Tab = 0x10000;
+    private const int FirstRowId = 1000, RowIdStride = 5;
     private readonly nint owner;
     private readonly AppIcons icons;
     private readonly Native.WndProc callback;
@@ -38,7 +39,7 @@ internal sealed class PresetEditor : IDisposable
         public readonly PropertyInfo Property = property;
         public readonly OptionAttribute Option = option;
         public readonly string[]? Choices = option.Choices?.Split('|');
-        public nint Label, Edit, Second, Slider, Hint;
+        public nint Label, Edit, Second, Slider, Hint, Reset;
     }
     public PresetEditor(nint owner, AppIcons icons)
     { this.owner = owner; this.icons = icons; callback = WindowProc; L.Changed += LanguageChanged; }
@@ -285,6 +286,7 @@ internal sealed class PresetEditor : IDisposable
             foreach (var row in rows)
             {
                 EditorNative.SetWindowTextW(row.Label,Caption(row.Option.Name));
+                EditorNative.SetWindowTextW(row.Reset,L.T("Сбросить"));
                 if (row.Property.PropertyType == typeof(bool)) EditorNative.SetWindowTextW(row.Edit,L.T("Включено"));
                 else if (row.Option.Choices != null && row.Second == 0)
                 {
@@ -298,7 +300,7 @@ internal sealed class PresetEditor : IDisposable
         finally { filling = false; }
         ValidateAndPreview(false);
     }
-    private static IEnumerable<nint> Handles(Row r) { yield return r.Label; yield return r.Edit; yield return r.Second; yield return r.Slider; yield return r.Hint; }
+    private static IEnumerable<nint> Handles(Row r) { yield return r.Label; yield return r.Edit; yield return r.Second; yield return r.Slider; yield return r.Hint; yield return r.Reset; }
     private void ChangeView()
     {
         bool nextAdvanced = EditorNative.SendMessageW(mode,0x147,0,0) == 1;
@@ -328,7 +330,7 @@ internal sealed class PresetEditor : IDisposable
             var options = advanced ? ImageOptions.Where(x => Group(x.Option.Name) == selectedCategory) : BasicOptions;
             foreach (var (property, option) in options)
             {
-                var row = new Row(property,option); int id = 1000 + rows.Count * 4;
+                var row = new Row(property,option); int id = FirstRowId + rows.Count * RowIdStride;
                 row.Label = Control("STATIC",Caption(option.Name),0,id,panel);
                 row.Hint = Control("STATIC","--" + option.Name + (option.Choices == null && property.PropertyType != typeof(bool) ? $"   [{option.Min.ToString(CultureInfo.InvariantCulture)} … {option.Max.ToString(CultureInfo.InvariantCulture)}]" : ""),0,id,panel);
                 if (property.PropertyType == typeof(bool)) row.Edit = Control("BUTTON",L.T("Включено"),Tab | 3,id+1,panel);
@@ -347,6 +349,7 @@ internal sealed class PresetEditor : IDisposable
                         EditorNative.SendMessageW(row.Slider,0x406,1,new nint(1000 << 16));
                     }
                 }
+                row.Reset = Control("BUTTON",L.T("Сбросить"),Tab,id+4,panel);
                 rows.Add(row); Fill(row);
             }
         }
@@ -370,6 +373,15 @@ internal sealed class PresetEditor : IDisposable
             EditorNative.SetWindowTextW(row.Edit,Convert.ToString(value,CultureInfo.InvariantCulture)!);
             SetSlider(row,Convert.ToDouble(value,CultureInfo.InvariantCulture));
         }
+    }
+    private void ResetRow(Row row)
+    {
+        row.Property.SetValue(draft,row.Property.GetValue(new CrtSettings()));
+        bool previous = filling; filling = true;
+        try { Fill(row); }
+        finally { filling = previous; }
+        // Keep the other controls' unfinished text and validate the whole draft before previewing.
+        ValidateAndPreview(true);
     }
     private static double Fraction(Row row, double value) => row.Option.Name.StartsWith("decay-")
         ? Math.Log(Math.Max(value,row.Option.Min) / row.Option.Min) / Math.Log(row.Option.Max / row.Option.Min)
@@ -461,10 +473,11 @@ internal sealed class PresetEditor : IDisposable
         {
             int y = i++ * 72 - scroll;
             Move(row.Label,6,y+5,330,24); Move(row.Hint,6,y+32,340,24);
-            int x = 350;
-            Move(row.Edit,x,y+9,row.Second != 0 ? 100 : row.Slider != 0 ? 108 : Math.Max(130,w-x-14),row.Option.Choices != null && row.Second == 0 ? 250 : 28);
+            int x = 350, resetX = w-108, inputRight = resetX-12;
+            Move(row.Edit,x,y+9,row.Second != 0 ? 100 : row.Slider != 0 ? 108 : Math.Max(130,inputRight-x),row.Option.Choices != null && row.Second == 0 ? 250 : 28);
             if (row.Second != 0) Move(row.Second,x+112,y+9,100,28);
-            if (row.Slider != 0) Move(row.Slider,x+118,y+8,Math.Max(40,w-x-132),34);
+            if (row.Slider != 0) Move(row.Slider,x+118,y+8,Math.Max(40,inputRight-x-118),34);
+            Move(row.Reset,resetX,y+9,94,28);
         }
         EditorNative.InvalidateRect(panel,0,true);
     }
@@ -608,10 +621,16 @@ internal sealed class PresetEditor : IDisposable
             if (msg == 0x111 && !filling)
             {
                 int id=(int)(wp & 0xffff), notification=(int)((wp >> 16)&0xffff);
-                if (id>=1000 && notification is 0 or 1 or 0x300)
+                if (id>=FirstRowId)
                 {
-                    int index = (id-1000)/4;
-                    if (index < rows.Count) ValidateAndPreview(true,changedRow: rows[index]);
+                    int index = (id-FirstRowId)/RowIdStride;
+                    if (index < rows.Count)
+                    {
+                        var row = rows[index];
+                        if (lp == row.Reset && notification == 0) ResetRow(row);
+                        else if ((lp == row.Edit || (row.Second != 0 && lp == row.Second)) && notification is 0 or 1 or 0x300)
+                            ValidateAndPreview(true,changedRow: row);
+                    }
                     return 0;
                 }
                 if (id==101 && notification==1) { ChoosePreset(); return 0; }

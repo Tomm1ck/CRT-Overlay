@@ -14,6 +14,14 @@ The last `--preset` supplies the base, then all explicit CLI overrides are appli
 
 Preset `SchemaVersion` is 1 when absent; versions 1 and 2 are accepted. Saving writes version 2. Unsupported versions are rejected before strict field parsing. Old presets retain `TubeProfile=legacy`. Embedded tube descriptions use a separate schema version 1.
 
+## Resetting editor controls
+
+The **Reset** button beside a control in Basic or Advanced settings restores only that control to the default listed in the tables below. Both coordinates of an X/Y pair reset together. **Restore preset** returns to the original values of the selected preset or opened file.
+
+You can reset an invalid field without correcting it by hand. Your edits, including unfinished or invalid input in other rows, stay in place. If all values are valid and **Live desktop preview** is on, the picture updates. While another field has an error, the last valid preview stays on screen and **Apply** and **Save to file…** remain unavailable. With preview off, the screen keeps the last applied settings.
+
+Resetting does not apply settings or write a file. Choose **Apply** to keep the result for this session, or **Save to file…** to also write it to JSON. Until you apply, **Cancel and close**, Escape, and the window's close button restore the last applied values.
+
 ## Commands
 
 | Command | Meaning |

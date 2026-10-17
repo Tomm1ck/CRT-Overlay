@@ -6,7 +6,7 @@ Bring a CRT-inspired atmosphere to your games, films, anime, and retro video. CR
 
 No game modification is required. Run a game or video player in a window or borderless mode, choose a preset, and tune the look in the live editor. The overlay passes mouse clicks through to the applications underneath.
 
-**Version 1.0.3 · Windows x64 · MIT license**
+**Version 1.0.4 · Windows x64 · MIT license**
 
 ## What it does
 
@@ -73,6 +73,8 @@ The top of the editor names the preset or file you are editing. **Modified** and
 **Apply** keeps your changes on screen without writing a file. **Save to file…** does both; use **Open file…** to load those settings again later. Until you apply your changes, **Cancel and close**, Escape, and the window's close button restore the last applied settings. After you apply, the button changes to **Close**. Turning preview off also shows the last applied settings and keeps your edits in the fields.
 
 **Restore preset** returns to the original values of the selected preset or opened file. **Applied settings** in the list restores your last applied choices. **Reset basic settings** restores the defaults for the six basic controls; **Reset section** does the same for the selected advanced section. Other settings stay as you left them. A complete preset replaces image settings; choosing a tube alone keeps the other controls.
+
+The **Reset** button beside a control in Basic or Advanced settings restores only that control to the app default. Coordinate pairs reset together, and your other edits, including unfinished input, stay in place. The same preview, apply, and cancel rules still apply.
 
 Switch English/Russian in the editor or tray. The preference lives in `%LOCALAPPDATA%\CrtOverlay\ui.json`, separate from image presets. CLI names and JSON keys stay the same in both languages.
 

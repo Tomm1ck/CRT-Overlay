@@ -2,6 +2,10 @@
 
 **English** · [Русский](docs/ru/CHANGELOG.md)
 
+## 1.0.4 — 2026-10-17
+
+- Reset an individual control to the app default in Basic or Advanced settings while keeping your other edits, including unfinished input.
+
 ## 1.0.3 — 2026-10-15
 
 - Frequently used picture controls are now together in Basic settings. Switch to Advanced settings for the full set of controls; your edits stay in place.
