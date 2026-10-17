@@ -6,7 +6,7 @@ Bring a CRT-inspired atmosphere to your games, films, anime, and retro video. CR
 
 No game modification is required. Run a game or video player in a window or borderless mode, choose a preset, and tune the look in the live editor. The overlay passes mouse clicks through to the applications underneath.
 
-**Version 1.0.4 · Windows x64 · MIT license**
+**Version 1.0.5 · Windows x64 · MIT license**
 
 ## What it does
 
@@ -67,6 +67,8 @@ Double-click the tray icon to open the editor. All shortcuts use **Ctrl+Alt+Shif
 If another app, such as G-Helper, owns a shortcut, only that shortcut is disabled for the session. CRT Overlay continues running; the action remains in the tray. Free the shortcut and restart to register it again.
 
 The editor first opens in **Basic settings**, with brightness, scanline and mask strength, glow, and curvature on both axes. Choose **Advanced settings** and a section for the full set of controls. Switching views keeps your edits; finish correcting an incomplete number before switching.
+
+Each of the six basic controls has a short, always-visible explanation of its effect. The same explanations appear in **Advanced settings**; CLI names and allowed ranges remain visible.
 
 The top of the editor names the preset or file you are editing. **Modified** and an asterisk in the title mean that you have changed its original values. The messages at the bottom distinguish changes you have applied from changes you have saved to a file. They also tell you when the effect is switched off from the tray or a shortcut.
 

@@ -39,7 +39,7 @@ internal sealed class PresetEditor : IDisposable
         public readonly PropertyInfo Property = property;
         public readonly OptionAttribute Option = option;
         public readonly string[]? Choices = option.Choices?.Split('|');
-        public nint Label, Edit, Second, Slider, Hint, Reset;
+        public nint Label, Edit, Second, Slider, Hint, Help, Reset;
     }
     public PresetEditor(nint owner, AppIcons icons)
     { this.owner = owner; this.icons = icons; callback = WindowProc; L.Changed += LanguageChanged; }
@@ -168,6 +168,16 @@ internal sealed class PresetEditor : IDisposable
         "noise" => L.T("Шум сигнала"), "flicker" => L.T("Сила мерцания"), "flicker-hz" => L.T("Частота мерцания, Гц"), "line-interference" => L.T("Помехи строк"), "vignette" => L.T("Виньетка"), "glass-reflection" => L.T("Отражение стекла"),
         "console" => L.T("Стиль консоли"), "retro-width" => L.T("Виртуальная ширина (0 = авто)"), "retro-height" => L.T("Виртуальная высота (0 = авто)"), "retro-dither" => L.T("Дизеринг консоли"), "retro-filter" => L.T("Фильтрация уменьшения"), "composite" => L.T("Смешение цветности Composite"), _ => name
     };
+    private static string? HelpText(string name) => name switch
+    {
+        "brightness" => L.T("Меняет общую яркость. Слишком высокое значение может скрыть светлые детали."),
+        "scanline-strength" => L.T("Усиливает рисунок строк; его вид зависит от числа строк и ширины луча."),
+        "mask-strength" => L.T("Усиливает рисунок маски; 0 убирает его. В режиме P4 маска отключена."),
+        "bloom" => L.T("Добавляет свечение вокруг ярких деталей. Широкий ореол настраивается отдельно."),
+        "curvature-x" => L.T("Искривляет изображение по горизонтали; 0 убирает эту дополнительную кривизну."),
+        "curvature-y" => L.T("Искривляет изображение по вертикали; 0 убирает эту дополнительную кривизну."),
+        _ => null
+    };
     private void ThreadMain()
     {
         L.ApplyThreadCulture();
@@ -287,6 +297,7 @@ internal sealed class PresetEditor : IDisposable
             {
                 EditorNative.SetWindowTextW(row.Label,Caption(row.Option.Name));
                 EditorNative.SetWindowTextW(row.Reset,L.T("Сбросить"));
+                if (row.Help != 0) EditorNative.SetWindowTextW(row.Help,HelpText(row.Option.Name)!);
                 if (row.Property.PropertyType == typeof(bool)) EditorNative.SetWindowTextW(row.Edit,L.T("Включено"));
                 else if (row.Option.Choices != null && row.Second == 0)
                 {
@@ -300,7 +311,7 @@ internal sealed class PresetEditor : IDisposable
         finally { filling = false; }
         ValidateAndPreview(false);
     }
-    private static IEnumerable<nint> Handles(Row r) { yield return r.Label; yield return r.Edit; yield return r.Second; yield return r.Slider; yield return r.Hint; yield return r.Reset; }
+    private static IEnumerable<nint> Handles(Row r) { yield return r.Label; yield return r.Edit; yield return r.Second; yield return r.Slider; yield return r.Hint; yield return r.Help; yield return r.Reset; }
     private void ChangeView()
     {
         bool nextAdvanced = EditorNative.SendMessageW(mode,0x147,0,0) == 1;
@@ -333,6 +344,7 @@ internal sealed class PresetEditor : IDisposable
                 var row = new Row(property,option); int id = FirstRowId + rows.Count * RowIdStride;
                 row.Label = Control("STATIC",Caption(option.Name),0,id,panel);
                 row.Hint = Control("STATIC","--" + option.Name + (option.Choices == null && property.PropertyType != typeof(bool) ? $"   [{option.Min.ToString(CultureInfo.InvariantCulture)} … {option.Max.ToString(CultureInfo.InvariantCulture)}]" : ""),0,id,panel);
+                if (HelpText(option.Name) is string help) row.Help = Control("STATIC",help,0xC,id,panel);
                 if (property.PropertyType == typeof(bool)) row.Edit = Control("BUTTON",L.T("Включено"),Tab | 3,id+1,panel);
                 else if (option.Choices != null && option.Choices != "x,y")
                 {
@@ -472,7 +484,9 @@ internal sealed class PresetEditor : IDisposable
         foreach (var row in rows)
         {
             int y = i++ * 72 - scroll;
-            Move(row.Label,6,y+5,330,24); Move(row.Hint,6,y+32,340,24);
+            Move(row.Label,6,y+5,330,24);
+            Move(row.Hint,6,y+(row.Help != 0 ? 29 : 32),340,row.Help != 0 ? 18 : 24);
+            if (row.Help != 0) Move(row.Help,6,y+48,Math.Max(1,w-12),22);
             int x = 350, resetX = w-108, inputRight = resetX-12;
             Move(row.Edit,x,y+9,row.Second != 0 ? 100 : row.Slider != 0 ? 108 : Math.Max(130,inputRight-x),row.Option.Choices != null && row.Second == 0 ? 250 : 28);
             if (row.Second != 0) Move(row.Second,x+112,y+9,100,28);

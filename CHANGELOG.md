@@ -2,6 +2,10 @@
 
 **English** · [Русский](docs/ru/CHANGELOG.md)
 
+## 1.0.5 — 2026-10-18
+
+- Short explanations of the six basic picture controls stay visible in Basic and Advanced settings, helping you understand how each control affects the picture.
+
 ## 1.0.4 — 2026-10-17
 
 - Reset an individual control to the app default in Basic or Advanced settings while keeping your other edits, including unfinished input.

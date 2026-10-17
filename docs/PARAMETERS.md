@@ -14,6 +14,10 @@ The last `--preset` supplies the base, then all explicit CLI overrides are appli
 
 Preset `SchemaVersion` is 1 when absent; versions 1 and 2 are accepted. Saving writes version 2. Unsupported versions are rejected before strict field parsing. Old presets retain `TubeProfile=legacy`. Embedded tube descriptions use a separate schema version 1.
 
+## Editor explanations
+
+Open **Basic settings** to see short explanations below brightness, scanline and mask strength, glow, and X/Y curvature. They stay visible and describe how each control affects the picture and what to keep in mind when adjusting it. The same six controls show these explanations in **Advanced settings**; CLI names and allowed ranges remain visible. Explanations follow the editor's language.
+
 ## Resetting editor controls
 
 The **Reset** button beside a control in Basic or Advanced settings restores only that control to the default listed in the tables below. Both coordinates of an X/Y pair reset together. **Restore preset** returns to the original values of the selected preset or opened file.
